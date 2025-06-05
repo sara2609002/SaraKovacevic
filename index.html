@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MonteGuide AI - Pametni turistički vodič Crne Gore</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 20px;
+            height: calc(100vh - 40px);
+        }
+
+        .chat-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, #2196F3 0%, #21CBF3 100%);
+            color: white;
+            padding: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chat-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="mountains" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse"><polygon points="10,5 15,15 5,15" fill="rgba(255,255,255,0.1)"/></pattern></defs><rect width="100" height="100" fill="url(%23mountains)"/></svg>');
+            opacity: 0.3;
+        }
+
+        .header-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .logo i {
+            font-size: 32px;
+            background: rgba(255,255,255,0.2);
+            padding: 12px;
+            border-radius: 12px;
+        }
+
+        .logo h1 {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .tagline {
+            font-size: 16px;
+            opacity: 0.9;
+            font-weight: 400;
+        }
+
+        .status-bar {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-top: 16px;
+            padding: 12px 16px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 12px;
+            font-size: 14px;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4CAF50;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            background: #f8fafc;
+            position: relative;
+        }
+
+        .chat-messages::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 20px;
+            background: linear-gradient(to bottom, rgba(248,250,252,1), rgba(248,250,252,0));
+            z-index: 1;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 12px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user {
+            flex-direction: row-reverse;
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .user .message-avatar {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .bot .message-avatar {
+            background: linear-gradient(135deg, #2196F3, #21CBF3);
+            color: white;
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 16px 20px;
+            border-radius: 18px;
+            position: relative;
+            line-height: 1.5;
+        }
+
+        .user .message-content {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-bottom-right-radius: 6px;
+        }
+
+        .bot .message-content {
+            background: white;
+            color: #2d3748;
+            border: 1px solid #e2e8f0;
+            border-bottom-left-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .keywords-detected {
+            background: linear-gradient(135deg, #e6f3ff, #f0f9ff);
+            border: 1px solid #bee3f8;
+            border-radius: 12px;
+            padding: 12px 16px;
+            margin: 12px 0;
+            font-size: 13px;
+            color: #2b6cb0;
+        }
+
+        .keywords-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .keyword-tag {
+            background: #2196F3;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .action-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .action-btn {
+            background: linear-gradient(135deg, #2196F3, #21CBF3);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(33, 150, 243, 0.3);
+        }
+
+        .chat-input-container {
+            padding: 20px 24px;
+            background: white;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .input-wrapper {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 16px 20px;
+            border: 2px solid #e2e8f0;
+            border-radius: 24px;
+            outline: none;
+            font-size: 16px;
+            resize: none;
+            min-height: 24px;
+            max-height: 120px;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+
+        .chat-input:focus {
+            border-color: #2196F3;
+            box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+        }
+
+        .send-btn, .debug-btn {
+            width: 48px;
+            height: 48px;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.3s ease;
+        }
+
+        .send-btn {
+            background: linear-gradient(135deg, #2196F3, #21CBF3);
+            color: white;
+        }
+
+        .debug-btn {
+            background: linear-gradient(135deg, #9C27B0, #E91E63);
+            color: white;
+        }
+
+        .send-btn:hover, .debug-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .stats-panel, .info-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 24px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .panel-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: #64748b;
+        }
+
+        .stat-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .keyword-counter {
+            background: linear-gradient(135deg, #2196F3, #21CBF3);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .confidence-indicator {
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .confidence-visok { background: #d4edda; color: #155724; }
+        .confidence-srednji { background: #fff3cd; color: #856404; }
+        .confidence-nizak { background: #f8d7da; color: #721c24; }
+
+        .info-list {
+            list-style: none;
+        }
+
+        .info-list li {
+            padding: 8px 0;
+            font-size: 14px;
+            color: #64748b;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-list i {
+            color: #2196F3;
+            width: 16px;
+        }
+
+        .clear-btn {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            margin-top: 16px;
+        }
+
+        .clear-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(239, 68, 68, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr auto;
+            }
+            
+            .sidebar {
+                order: 2;
+                flex-direction: row;
+                overflow-x: auto;
+            }
+            
+            .stats-panel, .info-panel {
+                min-width: 280px;
+            }
+        }
+
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 16px 20px;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #94a3b8;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-10px); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="chat-container">
+            <div class="chat-header">
+                <div class="header-content">
+                    <div class="logo">
+                        <i class="fas fa-mountain"></i>
+                        <div>
+                            <h1>MonteGuide AI</h1>
+                            <div class="tagline">Vaš pametni turistički asistent za Crnu Goru</div>
+                        </div>
+                    </div>
+                    <div class="status-bar">
+                        <div class="status-indicator">
+                            <div class="status-dot"></div>
+                            <span>AI Sistem Aktivan</span>
+                        </div>
+                        <div class="status-indicator">
+                            <i class="fas fa-database"></i>
+                            <span>Baza Znanja Učitana</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chat-messages" id="chat-messages">
+                <!-- Poruke će biti dodane ovdje -->
+            </div>
+
+            <div class="chat-input-container">
+                <div class="input-wrapper">
+                    <textarea 
+                        class="chat-input" 
+                        id="user-input" 
+                        placeholder="Pitajte me bilo šta o Crnoj Gori - destinacije, hoteli, restorani, aktivnosti..."
+                        rows="1"
+                        onkeypress="handleKeyPress(event)"
+                        oninput="autoResize(this)"></textarea>
+                    <button class="send-btn" onclick="sendMessage()" title="Pošalji poruku">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                    <button class="debug-btn" onclick="debugMessage()" title="Debug analiza">
+                        <i class="fas fa-bug"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <div class="stats-panel">
+                <div class="panel-title">
+                    <i class="fas fa-chart-line"></i>
+                    Statistike Razgovora
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Ključne riječi</span>
+                    <span class="keyword-counter" id="keyword-count">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Pouzdanost</span>
+                    <span class="confidence-indicator confidence-visok" id="confidence">Visoka</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Izvor odgovora</span>
+                    <span class="stat-value" id="source">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Relevantnost</span>
+                    <span class="stat-value" id="relevance">0%</span>
+                </div>
+                <button class="clear-btn" onclick="clearMemory()">
+                    <i class="fas fa-trash"></i> Obriši memoriju
+                </button>
+            </div>
+
+            <div class="info-panel">
+                <div class="panel-title">
+                    <i class="fas fa-info-circle"></i>
+                    Mogućnosti
+                </div>
+                <ul class="info-list">
+                    <li><i class="fas fa-map-marker-alt"></i> Informacije o destinacijama</li>
+                    <li><i class="fas fa-utensils"></i> Preporuke restorana</li>
+                    <li><i class="fas fa-camera"></i> Top atrakcije</li>
+                    <li><i class="fas fa-running"></i> Aktivnosti i sport</li>
+                    <li><i class="fas fa-bed"></i> Smještaj i hoteli</li>
+                    <li><i class="fas fa-route"></i> Planiranje putovanja</li>
+                    <li><i class="fas fa-question-circle"></i> Praktične informacije</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let messageCount = 0;
+
+        function addMessage(text, sender, data = {}) {
+            const messagesContainer = document.getElementById('chat-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+            messageCount++;
+
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.innerHTML = sender === 'user' ? '<i class="fas fa-user"></i>' : '<i class="fas fa-robot"></i>';
+
+            const content = document.createElement('div');
+            content.className = 'message-content';
+
+            if (sender === 'bot' && data.keywords && data.keywords.length > 0) {
+                const keywordsDiv = document.createElement('div');
+                keywordsDiv.className = 'keywords-detected';
+                keywordsDiv.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                        <i class="fas fa-search"></i>
+                        <strong>Prepoznao sam ${data.keywords.length} ključnih riječi:</strong>
+                    </div>
+                    <div class="keywords-list">
+                        ${data.keywords.map(kw => `<span class="keyword-tag">${kw}</span>`).join('')}
+                    </div>
+                `;
+                content.appendChild(keywordsDiv);
+
+                // Ažuriraj statistike
+                updateStats(data);
+            }
+
+            const textDiv = document.createElement('div');
+            if (sender === 'bot') {
+                textDiv.innerHTML = formatBotMessage(text, data);
+            } else {
+                textDiv.textContent = text;
+            }
+            content.appendChild(textDiv);
+
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(content);
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function formatBotMessage(text, data) {
+            let formattedText = text;
+            
+            // Formatiranje
+            formattedText = formattedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            formattedText = formattedText.replace(/• (.*?)(?=\n|$)/g, '<li>$1</li>');
+            formattedText = formattedText.replace(/(<li>.*?<\/li>\s*)+/g, function(match) {
+                return '<ul style="margin: 12px 0; padding-left: 20px;">' + match + '</ul>';
+            });
+            formattedText = formattedText.replace(/\n/g, '<br>');
+
+            // Dodaj dugmiće ako je potrebno
+            if (data.keywords && data.keywords.some(kw => ['budva', 'kotor', 'podgorica', 'herceg novi', 'tivat'].includes(kw))) {
+                const destination = data.keywords.find(kw => ['budva', 'kotor', 'podgorica', 'herceg novi', 'tivat'].includes(kw));
+                formattedText += generateActionButtons(destination);
+            }
+
+            return formattedText;
+        }
+
+        function generateActionButtons(destination) {
+            return `
+                <div class="action-buttons">
+                    <button class="action-btn" onclick="sendQuickMessage('${destination} atrakcije')">
+                        <i class="fas fa-camera"></i> Atrakcije
+                    </button>
+                    <button class="action-btn" onclick="sendQuickMessage('${destination} restorani')">
+                        <i class="fas fa-utensils"></i> Restorani
+                    </button>
+                    <button class="action-btn" onclick="sendQuickMessage('${destination} aktivnosti')">
+                        <i class="fas fa-running"></i> Aktivnosti
+                    </button>
+                    <button class="action-btn" onclick="sendQuickMessage('${destination} praktične info')">
+                        <i class="fas fa-info-circle"></i> Praktične info
+                    </button>
+                </div>
+            `;
+        }
+
+        function updateStats(data) {
+            document.getElementById('keyword-count').textContent = data.keywords ? data.keywords.length : 0;
+            
+            const confidenceEl = document.getElementById('confidence');
+            confidenceEl.textContent = data.confidence || 'Nepoznato';
+            confidenceEl.className = `confidence-indicator confidence-${data.confidence || 'nizak'}`;
+            
+            const sourceMap = {
+                'database_with_memory': 'Baza Znanja',
+                'openai_with_memory': 'AI Asistent',
+                'trie': 'Pretraga',
+                'fallback': 'Rezervni'
+            };
+            document.getElementById('source').textContent = sourceMap[data.source] || data.source || '-';
+            
+            const relevance = data.relevance_score || 0;
+            document.getElementById('relevance').textContent = `${Math.min(relevance, 100)}%`;
+        }
+
+        function showTypingIndicator() {
+            const messagesContainer = document.getElementById('chat-messages');
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'message bot';
+            typingDiv.id = 'typing-indicator';
+            
+            typingDiv.innerHTML = `
+                <div class="message-avatar"><i class="fas fa-robot"></i></div>
+                <div class="message-content">
+                    <div class="typing-indicator">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                    </div>
+                </div>
+            `;
+            
+            messagesContainer.appendChild(typingDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function removeTypingIndicator() {
+            const typingEl = document.getElementById('typing-indicator');
+            if (typingEl) typingEl.remove();
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('user-input');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            addMessage(message, 'user');
+            input.value = '';
+            input.style.height = 'auto';
+            
+            showTypingIndicator();
+            
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: message })
+                });
+                
+                const data = await response.json();
+                removeTypingIndicator();
+                addMessage(data.answer, 'bot', data);
+                
+            } catch (error) {
+                removeTypingIndicator();
+                addMessage('Izvinjavam se, došlo je do greške. Pokušajte ponovo.', 'bot');
+            }
+        }
+
+        function sendQuickMessage(message) {
+            const input = document.getElementById('user-input');
+            input.value = message;
+            sendMessage();
+        }
+
+        async function debugMessage() {
+            const input = document.getElementById('user-input');
+            const message = input.value.trim();
+            
+            if (!message) {
+                alert('Unesite tekst za debug analizu');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/debug', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: message })
+                });
+                
+                const data = await response.json();
+                
+                let debugInfo = `🔍 **DEBUG ANALIZA**\n\n`;
+                debugInfo += `**Unos:** "${data.input}"\n`;
+                debugInfo += `**Riječi:** ${data.words.join(', ')}\n`;
+                debugInfo += `**Pronađene ključne riječi:** ${data.found_keywords.join(', ')}\n\n`;
+                debugInfo += `**Trie pretraga:**\n`;
+                
+                data.trie_search_results.forEach(result => {
+                    debugInfo += `• "${result.word}": ${result.found_in_trie ? '✅' : '❌'}\n`;
+                });
+                
+                addMessage(debugInfo, 'bot');
+                
+            } catch (error) {
+                addMessage('Debug greška', 'bot');
+            }
+        }
+
+        async function clearMemory() {
+            try {
+                await fetch('/clear_memory', { method: 'POST' });
+                addMessage('🗑️ Memorija razgovora je obrisana. Možemo početi ispočetka!', 'bot');
+                updateStats({ keywords: [], confidence: 'visok', source: 'system', relevance_score: 0 });
+            } catch (error) {
+                console.error('Greška:', error);
+            }
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        function autoResize(textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+        }
+
+        // Početna poruka
+        window.addEventListener('load', function() {
+            addMessage('Dobrodošli u MonteGuide AI! 🏔️ Ja sam vaš pametni turistički asistent za Crnu Goru. Mogu vam pomoći sa informacijama o destinacijama, hotelima, restoranima, aktivnostima i svim praktičnim savjetima za vaše putovanje. Šta vas interesuje?', 'bot');
+        });
+    </script>
+</body>
+</html>
